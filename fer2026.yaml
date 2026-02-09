@@ -1,0 +1,16 @@
+name: emoui
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - opencv
+  - dlib
+  - cudatoolkit=11.2
+  - cudnn=8.1
+  - pip:
+    - tensorflow==2.10.0
+    - numpy<2.0          
+    - imutils
+    - argparse
