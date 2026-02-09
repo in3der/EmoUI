@@ -1,0 +1,27 @@
+# --- System & IDE ---
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+
+# --- Environments ---
+.env
+.venv
+env/
+venv/
+*.yaml
+!fer.yaml  # 설정 파일은 공유해야 하므로 예외 처리
+
+# --- Large Files & Datasets ---
+# 데이터셋 폴더 제외
+src/DataSets/
+manual/
+
+models/*.h5
+models/*.pb
+models/*.dat
+
+# --- Output Files ---
+src/*.mp4
+src/Outputs/
