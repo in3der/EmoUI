@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IVPL Emotion Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0e1117; color: #e0e0e0;
+  font-family: 'Segoe UI', sans-serif; font-size: 14px;
+}
+header {
+  background: #1a1d27; padding: 14px 24px;
+  border-bottom: 1px solid #2d3147;
+  display: flex; align-items: center; gap: 12px;
+}
+header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+header span { font-size: 13px; color: #888; }
+.main {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 12px; padding: 12px 16px;
+  max-width: 1600px; margin: 0 auto;
+}
+.panel {
+  background: #1a1d27; border: 1px solid #2d3147;
+  border-radius: 8px; padding: 14px;
+}
+.panel-title {
+  font-size: 12px; font-weight: 600; color: #888;
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+}
+.video-panel { grid-column: 1; grid-row: 1 / 3; }
+video { width: 100%; border-radius: 6px; background: #000; display: block; }
+.ctrl { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.seek-row { display: flex; align-items: center; gap: 10px; }
+#seekbar { flex: 1; height: 6px; accent-color: #4f8ef7; cursor: pointer; }
+#timeDisplay {
+  font-size: 12px; color: #aaa;
+  white-space: nowrap; min-width: 90px; text-align: right;
+}
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+button {
+  background: #2d3147; color: #e0e0e0;
+  border: 1px solid #3d4460; border-radius: 5px;
+  padding: 5px 14px; font-size: 13px;
+  cursor: pointer; transition: background 0.15s;
+}
+button:hover { background: #3d4460; }
+#sectionBtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sec-btn { font-size: 11px; padding: 3px 10px; background: #1e2236; border-color: #3d4460; }
+.sec-btn:hover { background: #2d3147; }
+.sync-panel { grid-column: 2; grid-row: 1; }
+.sync-score-row { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.score-circle {
+  width: 72px; height: 72px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; border: 3px solid; flex-shrink: 0;
+}
+.score-circle.high { color: #2ecc71; border-color: #2ecc71; }
+.score-circle.mid  { color: #f39c12; border-color: #f39c12; }
+.score-circle.low  { color: #e74c3c; border-color: #e74c3c; }
+.score-label { font-size: 13px; color: #aaa; line-height: 1.6; }
+.score-label strong { font-size: 15px; color: #e0e0e0; }
+.persons-panel { grid-column: 2; grid-row: 2; }
+.person-cards { display: flex; flex-direction: column; gap: 7px; max-height: 280px; overflow-y: auto; }
+.person-card {
+  background: #0e1117; border: 1px solid #2d3147;
+  border-radius: 6px; padding: 8px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.person-id { font-size: 11px; color: #888; min-width: 72px; font-weight: 600; }
+.emotion-badge {
+  font-size: 12px; font-weight: 600; padding: 2px 9px;
+  border-radius: 12px; min-width: 80px; text-align: center;
+}
+.va-bar-wrap { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.va-bar-row { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #888; }
+.va-bar-bg { flex: 1; height: 5px; background: #2d3147; border-radius: 3px; overflow: hidden; }
+.va-bar-fill { height: 100%; border-radius: 3px; transition: width 0.15s; }
+.charts-row { grid-column: 1 / 3; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.chart-wrap { position: relative; height: 200px; }
+.section-scores { grid-column: 1 / 3; }
+.section-bar-list { display: flex; flex-direction: column; gap: 5px; }
+.section-bar-row { display: grid; grid-template-columns: 140px 1fr 44px; align-items: center; gap: 10px; }
+.section-bar-label { font-size: 12px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.section-bar-bg { height: 14px; background: #2d3147; border-radius: 4px; overflow: hidden; cursor: pointer; }
+.section-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.section-bar-pct { font-size: 12px; font-weight: 600; text-align: right; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #1a1d27; }
+::-webkit-scrollbar-thumb { background: #3d4460; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎭 IVPL Emotion Dashboard</h1>
+  <span id="metaInfo">데이터 로딩 중...</span>
+</header>
+
+<div class="main">
+
+  <div class="panel video-panel">
+    <div class="panel-title">분석 영상</div>
+    <video id="videoEl">
+      <source src="results/analysis_result_overlay.mp4" type="video/mp4">
+    </video>
+    <div class="ctrl">
+      <div class="seek-row">
+        <input type="range" id="seekbar" min="0" max="100" value="0" step="0.01">
+        <span id="timeDisplay">0:00 / 0:00</span>
+      </div>
+      <div class="btn-row">
+        <button id="btnPlay">▶ 재생</button>
+        <button id="btnMinus10">◀ 10초</button>
+        <button id="btnPlus10">10초 ▶</button>
+      </div>
+      <div id="sectionBtns"></div>
+    </div>
+  </div>
+
+  <div class="panel sync-panel">
+    <div class="panel-title">🎯 동기화 점수</div>
+    <div class="sync-score-row">
+      <div class="score-circle low" id="scoreCircle">--%</div>
+      <div class="score-label">
+        <strong id="scoreLabel">-</strong><br>
+        현재 시점의 영상 감정선과<br>사람 감정선의 유사도
+      </div>
+    </div>
+    <div class="panel-title" style="margin-top:8px">현재 구간</div>
+    <div id="currentSection" style="font-size:13px;color:#ccc;">-</div>
+  </div>
+
+  <div class="panel persons-panel">
+    <div class="panel-title">👥 사람별 감정</div>
+    <div class="person-cards" id="personCards">
+      <div style="color:#666;font-size:12px">영상을 재생하면 감정이 표시됩니다</div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-title">Valence / Arousal — 사람 전체 (가중 평균)</div>
+      <div class="chart-wrap"><canvas id="vaChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">영상 감정선 vs 사람 감정선 — Valence</div>
+      <div class="chart-wrap"><canvas id="syncChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel section-scores">
+    <div class="panel-title">📊 구간별 동기화 점수 (클릭하면 해당 구간으로 이동)</div>
+    <div class="section-bar-list" id="sectionBars"></div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+const EMOTION_COLORS = {
+  Anger: '#FF4B4B', Disgust: '#9B59B6', Fear: '#2C3E50',
+  Happiness: '#F1C40F', Neutral: '#95A5A6', Sadness: '#3498DB', Surprise: '#E67E22'
+};
+
+let DATA = null, fps = 30, durationSec = 0;
+let vaChart = null, syncChart = null;
+
+// skip으로 분석된 프레임 키 목록 (정렬된 숫자 배열) — 가장 가까운 프레임 탐색용
+let sortedFrameKeys = [];
+
+const MAX_POINTS = 300;
+const WIN_SEC    = 3;
+
+fetch('results/viewer_data.json')
+  .then(r => r.json())
+  .then(d => {
+    DATA = d;
+    fps  = d.meta.fps;
+    durationSec = d.meta.duration_sec;
+    // 프레임 키를 숫자 배열로 미리 정렬해둠
+    sortedFrameKeys = Object.keys(d.frames).map(Number).sort((a, b) => a - b);
+    init();
+  })
+  .catch(() => {
+    document.getElementById('metaInfo').textContent =
+      '⚠️ viewer_data.json 없음 — python export_json.py 를 먼저 실행해주세요';
+  });
+
+// skip된 프레임 대응: 현재 프레임에서 가장 가까운 실제 데이터 프레임을 찾음
+function nearestFrame(frame) {
+  if (!sortedFrameKeys.length) return null;
+  // 이진 탐색
+  let lo = 0, hi = sortedFrameKeys.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sortedFrameKeys[mid] < frame) lo = mid + 1;
+    else hi = mid;
+  }
+  // lo가 frame 이상인 첫 번째 인덱스
+  const a = sortedFrameKeys[lo];
+  const b = lo > 0 ? sortedFrameKeys[lo - 1] : a;
+  const nearest = Math.abs(a - frame) <= Math.abs(b - frame) ? a : b;
+  return DATA.frames[String(nearest)] || null;
+}
+
+function init() {
+  document.getElementById('metaInfo').textContent =
+    `길이: ${DATA.meta.duration_sec.toFixed(1)}초 | ` +
+    `FPS: ${DATA.meta.fps.toFixed(1)} | ` +
+    `총 프레임: ${DATA.meta.total_frames.toLocaleString()}`;
+  initCharts();
+  buildSectionBtns();
+  buildSectionBars();
+  startLoop();
+}
+
+// ── 차트 초기화 ───────────────────────────────────────────────────
+function initCharts() {
+  const baseOpts = {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { labels: { color: '#aaa', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#666', maxTicksLimit: 6, font: { size: 10 } }, grid: { color: '#2d3147' } },
+      y: { min: -1, max: 1, ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#2d3147' } }
+    }
+  };
+
+  vaChart = new Chart(document.getElementById('vaChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: 'Valence', data: [], borderColor: '#3498DB', borderWidth: 2, pointRadius: 0, tension: 0.4 },
+      { label: 'Arousal', data: [], borderColor: '#E74C3C', borderWidth: 2, pointRadius: 0, tension: 0.4 }
+    ]},
+    options: JSON.parse(JSON.stringify(baseOpts))
+  });
+
+  syncChart = new Chart(document.getElementById('syncChart'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: '영상 (시나리오)', data: [], borderColor: '#E74C3C', borderWidth: 2, pointRadius: 0, tension: 0.4, borderDash: [] },
+      { label: '사람 (가중 평균)', data: [], borderColor: '#3498DB', borderWidth: 2, pointRadius: 0, tension: 0.4, borderDash: [4, 2] }
+    ]},
+    options: JSON.parse(JSON.stringify(baseOpts))
+  });
+}
+
+// ── 구간 버튼 / 점수 바 ───────────────────────────────────────────
+function seekTo(timeSec) {
+  // duration이 준비되면 이동, 아직 안 됐으면 loadedmetadata 이후에 이동
+  if (vid.readyState >= 1) {
+    vid.currentTime = timeSec;
+    seekbar.value = (timeSec / vid.duration) * 100;
+  } else {
+    vid.addEventListener('loadedmetadata', function handler() {
+      vid.currentTime = timeSec;
+      seekbar.value = (timeSec / vid.duration) * 100;
+      vid.removeEventListener('loadedmetadata', handler);
+    });
+  }
+}
+
+function buildSectionBtns() {
+  const wrap = document.getElementById('sectionBtns');
+  DATA.sections.forEach(sec => {
+    const btn = document.createElement('button');
+    btn.className = 'sec-btn';
+    btn.textContent = sec.description;
+    btn.addEventListener('click', () => seekTo(sec.time_start));
+    wrap.appendChild(btn);
+  });
+}
+
+function buildSectionBars() {
+  const wrap = document.getElementById('sectionBars');
+  DATA.sections.forEach(sec => {
+    const score = calcSyncScore(sec.time_start, sec.time_end);
+    const pct   = Math.round(score * 100);
+    const color = pct >= 70 ? '#2ecc71' : pct >= 40 ? '#f39c12' : '#e74c3c';
+
+    const row = document.createElement('div');
+    row.className = 'section-bar-row';
+    row.innerHTML =
+      `<div class="section-bar-label" title="${sec.description}">${sec.description}</div>` +
+      `<div class="section-bar-bg">` +
+        `<div class="section-bar-fill" style="width:${pct}%;background:${color}"></div>` +
+      `</div>` +
+      `<div class="section-bar-pct" style="color:${color}">${pct}%</div>`;
+    row.querySelector('.section-bar-bg').addEventListener('click', () => seekTo(sec.time_start));
+    wrap.appendChild(row);
+  });
+}
+
+// ── 동기화 점수 계산 ──────────────────────────────────────────────
+function calcSyncScore(timeStart, timeEnd) {
+  const fStart = Math.floor(timeStart * fps);
+  const fEnd   = Math.floor((timeEnd != null ? timeEnd : durationSec) * fps);
+
+  let sumV = 0, sumA = 0, count = 0;
+  const step = Math.max(1, Math.floor((fEnd - fStart) / 600));
+  for (let f = fStart; f <= fEnd; f += step) {
+    const fd = DATA.frames[String(f)];
+    if (!fd) continue;
+    sumV += fd.avg_valence;
+    sumA += fd.avg_arousal;
+    count++;
+  }
+  if (count === 0) return 0;
+
+  const scn = DATA.scenario.filter(s => s.frame >= fStart && s.frame <= fEnd);
+  if (scn.length === 0) return 0;
+
+  const audV = sumV / count;
+  const audA = sumA / count;
+  const scnV = scn.reduce((acc, r) => acc + r.valence, 0) / scn.length;
+  const scnA = scn.reduce((acc, r) => acc + r.arousal, 0) / scn.length;
+
+  const MAX_DIST = 2 * Math.sqrt(2);
+  const dist     = Math.sqrt((audV - scnV) ** 2 + (audA - scnA) ** 2);
+  return Math.max(0, 1 - dist / MAX_DIST);
+}
+
+// ── 비디오 컨트롤 ─────────────────────────────────────────────────
+const vid     = document.getElementById('videoEl');
+const seekbar = document.getElementById('seekbar');
+
+document.getElementById('btnPlay').addEventListener('click', () => {
+  vid.paused ? vid.play() : vid.pause();
+});
+document.getElementById('btnMinus10').addEventListener('click', () => {
+  seekTo(Math.max(0, vid.currentTime - 10));
+});
+document.getElementById('btnPlus10').addEventListener('click', () => {
+  seekTo(Math.min(durationSec, vid.currentTime + 10));
+});
+
+vid.addEventListener('play',  () => { document.getElementById('btnPlay').textContent = '⏸ 일시정지'; });
+vid.addEventListener('pause', () => { document.getElementById('btnPlay').textContent = '▶ 재생'; });
+let isSeeking = false;
+
+vid.addEventListener('timeupdate', () => {
+  if (!vid.duration) return;
+  // 사용자가 seekbar 드래그 중일 때는 덮어쓰지 않음
+  if (!isSeeking) {
+    seekbar.value = (vid.currentTime / vid.duration) * 100;
+  }
+  document.getElementById('timeDisplay').textContent =
+    `${fmtTime(vid.currentTime)} / ${fmtTime(vid.duration)}`;
+});
+seekbar.addEventListener('mousedown', () => { isSeeking = true; });
+seekbar.addEventListener('touchstart', () => { isSeeking = true; });
+seekbar.addEventListener('input', () => {
+  if (vid.duration) vid.currentTime = (seekbar.value / 100) * vid.duration;
+});
+seekbar.addEventListener('mouseup', () => { isSeeking = false; });
+seekbar.addEventListener('touchend', () => { isSeeking = false; });
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// ── 메인 루프 ─────────────────────────────────────────────────────
+function startLoop() {
+  (function loop() {
+    if (DATA) update(vid.currentTime);
+    requestAnimationFrame(loop);
+  })();
+}
+
+let lastSec = -1;
+
+function update(currentTime) {
+  if (Math.abs(currentTime - lastSec) < 0.1) return;
+  lastSec = currentTime;
+  const frame = Math.floor(currentTime * fps);
+  // skip된 프레임도 가장 가까운 데이터로 표시
+  const fd = nearestFrame(frame);
+  updatePersonCards(fd);
+  updateSyncScore(currentTime);
+  updateCurrentSection(currentTime);
+  updateCharts(frame);
+}
+
+function updatePersonCards(fd) {
+  const wrap = document.getElementById('personCards');
+  if (!fd || !fd.persons || fd.persons.length === 0) {
+    wrap.innerHTML = '<div style="color:#666;font-size:12px">현재 프레임에 감지된 사람 없음</div>';
+    return;
+  }
+  wrap.innerHTML = fd.persons.map(p => {
+    const color = EMOTION_COLORS[p.emotion] || '#888';
+    const vPct  = ((p.valence + 1) / 2 * 100).toFixed(1);
+    const aPct  = ((p.arousal + 1) / 2 * 100).toFixed(1);
+    const vSign = p.valence >= 0 ? '+' : '';
+    const aSign = p.arousal >= 0 ? '+' : '';
+    return (
+      `<div class="person-card">` +
+        `<div class="person-id">${p.id}</div>` +
+        `<div class="emotion-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${p.emotion}</div>` +
+        `<div class="va-bar-wrap">` +
+          `<div class="va-bar-row">` +
+            `<span style="width:12px">V</span>` +
+            `<div class="va-bar-bg"><div class="va-bar-fill" style="width:${vPct}%;background:#3498DB"></div></div>` +
+            `<span>${vSign}${p.valence.toFixed(2)}</span>` +
+          `</div>` +
+          `<div class="va-bar-row">` +
+            `<span style="width:12px">A</span>` +
+            `<div class="va-bar-bg"><div class="va-bar-fill" style="width:${aPct}%;background:#E74C3C"></div></div>` +
+            `<span>${aSign}${p.arousal.toFixed(2)}</span>` +
+          `</div>` +
+        `</div>` +
+      `</div>`
+    );
+  }).join('');
+}
+
+function updateSyncScore(currentTime) {
+  const score  = calcSyncScore(
+    Math.max(0, currentTime - WIN_SEC),
+    Math.min(durationSec, currentTime + WIN_SEC)
+  );
+  const pct    = Math.round(score * 100);
+  const circle = document.getElementById('scoreCircle');
+  const lbl    = document.getElementById('scoreLabel');
+  circle.textContent = `${pct}%`;
+  circle.className   = `score-circle ${pct >= 70 ? 'high' : pct >= 40 ? 'mid' : 'low'}`;
+  lbl.textContent    = pct >= 70 ? '동기화 높음' : pct >= 40 ? '동기화 보통' : '동기화 낮음';
+}
+
+function updateCurrentSection(currentTime) {
+  const sec = DATA.sections.find(s => currentTime >= s.time_start && currentTime < s.time_end);
+  document.getElementById('currentSection').textContent = sec
+    ? `${sec.description} (${sec.time_start.toFixed(0)}s ~ ${sec.time_end.toFixed(0)}s)`
+    : '-';
+}
+
+function updateCharts(currentFrame) {
+  const startFrame = Math.max(0, currentFrame - MAX_POINTS);
+  const labels = [], audV = [], audA = [], scnV = [];
+
+  for (let f = startFrame; f <= currentFrame; f += 2) {
+    const fd  = DATA.frames[String(f)];
+    const scn = DATA.scenario[f];
+    if (!fd || !scn) continue;
+    labels.push((f / fps).toFixed(1));
+    audV.push(fd.avg_valence);
+    audA.push(fd.avg_arousal);
+    scnV.push(scn.valence);
+  }
+
+  vaChart.data.labels           = labels;
+  vaChart.data.datasets[0].data = audV;
+  vaChart.data.datasets[1].data = audA;
+  vaChart.update('none');
+
+  syncChart.data.labels           = labels;
+  syncChart.data.datasets[0].data = scnV;
+  syncChart.data.datasets[1].data = audV;
+  syncChart.update('none');
+}
+</script>
+</body>
+</html>

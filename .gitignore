@@ -11,12 +11,17 @@ __pycache__/
 env/
 venv/
 
-
 # --- Large Files & Datasets ---
-# 데이터셋 폴더 제외
 src/DataSets/
 manual/
 
 # --- Output Files ---
 src/*.mp4
 src/Outputs/
+src/results/
+
+# --- 구버전 파일 ---
+src/app_intensity.py
+src/app_intensity_실행정보.txt
+src/fer_main.py
+src/fer_main_Videofiles.py

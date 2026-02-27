@@ -7,10 +7,14 @@ dependencies:
   - pip
   - opencv
   - dlib
+  - ffmpeg
   - cudatoolkit=11.2
   - cudnn=8.1
   - pip:
     - tensorflow==2.10.0
-    - numpy<2.0          
+    - numpy<2.0
     - imutils
     - argparse
+    - streamlit
+    - hsemotion-onnx
+    - pandas
